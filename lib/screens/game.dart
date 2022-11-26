@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:tic_toc_toe/models/game.dart';
 import 'package:tic_toc_toe/utils/constants.dart';
@@ -11,6 +12,8 @@ class GameWidget extends StatefulWidget {
 }
 
 class _GameWidgetState extends State<GameWidget> {
+  static const platform = MethodChannel("game/exchange");
+
   Game? game;
   bool? minhaVez;
 
@@ -109,11 +112,11 @@ class _GameWidgetState extends State<GameWidget> {
                 padding: paddingDefault,
                 child: Text(label, style: textStyle36)),
             onPressed: () {
-              createGame(isCreator);
+              _createGame(isCreator);
             }),
       );
 
-  Widget _getCell(int x, int y){
+  Widget _getCell(int x, int y) {
     return InkWell(
         child: Container(
           padding: paddingDefault,
@@ -128,18 +131,21 @@ class _GameWidgetState extends State<GameWidget> {
             style: textStyle72,
           )),
         ),
-        onTap: (){
-          if(minhaVez == true && cells[x][y] == 0){
-            setState(() {
-              minhaVez = false;
-              cells[x][y] = 1;
-            });
+        onTap: () async {
+          if (minhaVez == true && cells[x][y] == 0) {
+            final result = await _sendAction(
+                "sendAction", {'tap': '${game!.creator ? 'p1' : 'p2'}|$x|$y'});
+            if (result) {
+              setState(() {
+                minhaVez = false;
+                cells[x][y] = 1;
+              });
+            }
           }
-        }
-      );
+        });
   }
 
-  Future createGame(bool isCreator) {
+  Future _createGame(bool isCreator) {
     final editingController = TextEditingController();
     return showDialog(
         context: context,
@@ -152,12 +158,16 @@ class _GameWidgetState extends State<GameWidget> {
             ),
             actions: [
               ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      game = Game(editingController.text, isCreator);
-                      minhaVez = isCreator;
-                    });
+                  onPressed: () async {
                     Navigator.pop(context);
+                    final result = await _sendAction(
+                        "subscribe", {'channel': editingController.text});
+                    if (result) {
+                      setState(() {
+                        game = Game(editingController.text, isCreator);
+                        minhaVez = isCreator;
+                      });
+                    }
                   },
                   child: const Text("Jogar")),
               ElevatedButton(
@@ -168,5 +178,20 @@ class _GameWidgetState extends State<GameWidget> {
             ],
           );
         });
+  }
+
+  Future<bool> _sendAction(
+      String action, Map<String, dynamic> arguments) async {
+    try {
+      // aqui vamos enviar informações do flutter para as plataformas nativas:
+      final result = await platform.invokeMethod(action, arguments);
+      if (result) {
+        return true;
+      }
+    } on PlatformException catch (e) {
+      print('Ocorreu erro ao enviar ação: $e');
+    }
+
+    return false;
   }
 }

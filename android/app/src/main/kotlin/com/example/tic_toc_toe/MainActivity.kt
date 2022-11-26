@@ -1,6 +1,61 @@
 package com.example.tic_toc_toe
 
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.PersistableBundle
+import android.util.Log
+import com.pubnub.api.PNConfiguration
+import com.pubnub.api.PubNub
 import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
+import java.util.*
 
 class MainActivity: FlutterActivity() {
+
+    private val CHANNEL_NATIVE_DART = "game/exchange"
+
+    private var pubNub : PubNub? = null
+    private var channel_pubnub : String? = null
+    private var handler : Handler? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        handler = (Handler(Looper.getMainLooper()))
+
+        val pnConfigurations = PNConfiguration("myUniqueUUID")
+        pnConfigurations.subscribeKey = "sub-c-6b4e3e39-5806-4966-b43f-a764595d1e13"
+        pnConfigurations.publishKey = "pub-c-a0e59d09-48b3-4e13-97fa-072d91cfc62c"
+        pubNub = PubNub(pnConfigurations)
+    }
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+
+        val methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL_NATIVE_DART)
+        methodChannel.setMethodCallHandler{
+            call, result ->
+
+            if(call.method == "sendAction"){
+                pubNub!!.publish()
+                        .message(call.arguments)
+                        .channel(channel_pubnub)
+                        .async { _, status ->  Log.d("pubnub", "teve erro? ${status.isError}")}
+                result.success(true)
+            }
+            else if(call.method == "subscribe"){
+                subscribeChannel(call.argument<String>("channel"))
+                result.success(true)
+            }
+        }
+    }
+
+    private fun subscribeChannel(channelName: String?){
+        channel_pubnub = channelName
+        channelName?.let {
+            pubNub?.subscribe()?.channels(Arrays.asList(channelName))?.execute()
+        }
+    }
 }
