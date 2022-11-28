@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:tic_toc_toe/models/game.dart';
+import 'package:tic_toc_toe/models/message.dart';
 import 'package:tic_toc_toe/utils/constants.dart';
 
 class GameWidget extends StatefulWidget {
@@ -23,6 +24,35 @@ class _GameWidgetState extends State<GameWidget> {
     [0, 0, 0],
     [0, 0, 0],
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _configurePubNub();
+  }
+
+  void _configurePubNub() {
+    platform.setMethodCallHandler((call) async {
+      print("Platform received: $call");
+      final action = call.method;
+      final arguments = call.arguments.toString().replaceAll("\"", "");
+      final splitted = arguments.split('|');
+
+      if (action == "sendAction") {
+        final message = Message(splitted[0], int.parse(splitted[1].trim()),
+            int.parse(splitted[2].trim()));
+
+        if (message.user == (game?.creator == true ? 'p2' : 'p1')) {
+          setState(() {
+            minhaVez = true;
+            cells[message.x][message.y] = 2;
+          });
+          // check se houve ganhador
+          _checkWinner();
+        }
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -140,6 +170,7 @@ class _GameWidgetState extends State<GameWidget> {
                 minhaVez = false;
                 cells[x][y] = 1;
               });
+              _checkWinner();
             }
           }
         });
@@ -193,5 +224,119 @@ class _GameWidgetState extends State<GameWidget> {
     }
 
     return false;
+  }
+
+  _checkWinner() {
+    bool youWin = false;
+    bool enemyWin = false;
+
+    if (cells[0][0] != 0 &&
+        cells[0][0] == cells[0][1] &&
+        cells[0][1] == cells[0][2]) {
+      if (cells[0][0] == 1) {
+        youWin = true;
+      }
+      enemyWin = true;
+    } else if (cells[1][0] != 0 &&
+        cells[1][0] == cells[1][1] &&
+        cells[1][1] == cells[1][2]) {
+      if (cells[1][0] == 1) {
+        youWin = true;
+      }
+      enemyWin = true;
+    } else if (cells[2][0] != 0 &&
+        cells[2][0] == cells[2][1] &&
+        cells[2][1] == cells[2][2]) {
+      if (cells[2][0] == 1) {
+        youWin = true;
+      }
+      enemyWin = true;
+    } else if (cells[0][0] != 0 &&
+        cells[0][0] == cells[1][0] &&
+        cells[1][0] == cells[2][0]) {
+      if (cells[0][0] == 1) {
+        youWin = true;
+      }
+      enemyWin = true;
+    } else if (cells[0][1] != 0 &&
+        cells[0][1] == cells[1][1] &&
+        cells[1][1] == cells[2][1]) {
+      if (cells[0][1] == 1) {
+        youWin = true;
+      }
+      enemyWin = true;
+    } else if (cells[0][2] != 0 &&
+        cells[0][2] == cells[1][2] &&
+        cells[1][2] == cells[2][2]) {
+      if (cells[0][2] == 1) {
+        youWin = true;
+      }
+      enemyWin = true;
+    } else if (cells[0][0] != 0 &&
+        cells[0][0] == cells[1][1] &&
+        cells[1][1] == cells[2][2]) {
+      if (cells[0][0] == 1) {
+        youWin = true;
+      }
+      enemyWin = true;
+    } else if (cells[0][2] != 0 &&
+        cells[0][2] == cells[1][1] &&
+        cells[1][1] == cells[2][0]) {
+      if (cells[0][2] == 1) {
+        youWin = true;
+      }
+      enemyWin = true;
+    }
+
+    if (youWin) {
+      _showFinishGame(true);
+    } else if (enemyWin) {
+      _showFinishGame(false);
+    } else {
+      bool allPlaysDone = true;
+      for (var line in cells) {
+        for (var column in line) {
+          if(allPlaysDone == false) break;
+          if (column == 0) {
+            allPlaysDone = false;
+            break;
+          }
+        }
+      }
+      if (allPlaysDone == true) _showFinishGame(null);
+    }
+  }
+
+  Future _showFinishGame(bool? youWin) {
+    return showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text("FIM DE JOGO!!!"),
+            content: Text(youWin == true
+                ? "Você ganhou"
+                : youWin == false
+                    ? "Você perdeu"
+                    : "Não houve ganhadores"),
+            actions: [
+              ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    setState(() {
+                      game = null;
+                      bool? minhaVez = false;
+
+                      cells = [
+                        [0, 0, 0],
+                        [0, 0, 0],
+                        [0, 0, 0],
+                      ];
+                    });
+                  },
+                  child: const Text("Fechar"))
+            ],
+          );
+        });
   }
 }

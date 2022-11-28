@@ -5,8 +5,19 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PersistableBundle
 import android.util.Log
+import com.google.gson.JsonElement
 import com.pubnub.api.PNConfiguration
 import com.pubnub.api.PubNub
+import com.pubnub.api.callbacks.SubscribeCallback
+import com.pubnub.api.models.consumer.PNStatus
+import com.pubnub.api.models.consumer.objects_api.channel.PNChannelMetadataResult
+import com.pubnub.api.models.consumer.objects_api.membership.PNMembershipResult
+import com.pubnub.api.models.consumer.objects_api.uuid.PNUUIDMetadataResult
+import com.pubnub.api.models.consumer.pubsub.PNMessageResult
+import com.pubnub.api.models.consumer.pubsub.PNPresenceEventResult
+import com.pubnub.api.models.consumer.pubsub.PNSignalResult
+import com.pubnub.api.models.consumer.pubsub.files.PNFileEventResult
+import com.pubnub.api.models.consumer.pubsub.message_actions.PNMessageActionResult
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -29,6 +40,37 @@ class MainActivity: FlutterActivity() {
         pnConfigurations.subscribeKey = "sub-c-6b4e3e39-5806-4966-b43f-a764595d1e13"
         pnConfigurations.publishKey = "pub-c-a0e59d09-48b3-4e13-97fa-072d91cfc62c"
         pubNub = PubNub(pnConfigurations)
+
+        pubNub.let {
+            it?.addListener(object :SubscribeCallback(){
+                override fun status(pubnub: PubNub, pnStatus: PNStatus) {}
+                override fun presence(pubnub: PubNub, pnPresenceEventResult: PNPresenceEventResult) {}
+                override fun signal(pubnub: PubNub, pnSignalResult: PNSignalResult) {}
+                override fun uuid(pubnub: PubNub, pnUUIDMetadataResult: PNUUIDMetadataResult) {}
+                override fun channel(pubnub: PubNub, pnChannelMetadataResult: PNChannelMetadataResult) {}
+                override fun membership(pubnub: PubNub, pnMembershipResult: PNMembershipResult) {}
+                override fun messageAction(pubnub: PubNub, pnMessageActionResult: PNMessageActionResult) {}
+                override fun file(pubnub: PubNub, pnFileEventResult: PNFileEventResult) {}
+
+                override fun message(pubnub: PubNub, pnMessageResult: PNMessageResult) {
+                    //Pubnub dispara quando chega uma mensagem para ele
+                    var receivedMessageObject : JsonElement? = null
+                    val actionReceived = "sendAction"
+
+                    Log.d("Pubnub Listener", "Received message content: ${pnMessageResult.message.toString()}")
+                    if(pnMessageResult.message.asJsonObject["tap"] != null){
+                        receivedMessageObject = pnMessageResult.message.asJsonObject["tap"]
+                    }
+
+                    handler?.let {
+                        it.post{
+                            val methodChannel = MethodChannel(flutterEngine!!.dartExecutor.binaryMessenger, CHANNEL_NATIVE_DART)
+                            methodChannel.invokeMethod(actionReceived, "${receivedMessageObject.toString()}")
+                        }
+                    }
+                }
+            })
+        }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
