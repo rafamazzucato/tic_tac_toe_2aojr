@@ -55,11 +55,14 @@ class MainActivity: FlutterActivity() {
                 override fun message(pubnub: PubNub, pnMessageResult: PNMessageResult) {
                     //Pubnub dispara quando chega uma mensagem para ele
                     var receivedMessageObject : JsonElement? = null
-                    val actionReceived = "sendAction"
+                    var actionReceived = "sendAction"
 
                     Log.d("Pubnub Listener", "Received message content: ${pnMessageResult.message.toString()}")
                     if(pnMessageResult.message.asJsonObject["tap"] != null){
                         receivedMessageObject = pnMessageResult.message.asJsonObject["tap"]
+                    }else if(pnMessageResult.message.asJsonObject["message"] != null){
+                        receivedMessageObject = pnMessageResult.message.asJsonObject["message"]
+                        actionReceived = "chat"
                     }
 
                     handler?.let {
@@ -80,7 +83,7 @@ class MainActivity: FlutterActivity() {
         methodChannel.setMethodCallHandler{
             call, result ->
 
-            if(call.method == "sendAction"){
+            if(call.method == "sendAction" || call.method == "chat"){
                 pubNub!!.publish()
                         .message(call.arguments)
                         .channel(channel_pubnub)

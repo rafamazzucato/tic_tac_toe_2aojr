@@ -50,6 +50,8 @@ class _GameWidgetState extends State<GameWidget> {
           // check se houve ganhador
           _checkWinner();
         }
+      }else if (action == "chat" && splitted[0] == (game?.creator == true ? 'p2' : 'p1')) {
+        _showMessage(splitted[1]);
       }
     });
   }
@@ -102,7 +104,9 @@ class _GameWidgetState extends State<GameWidget> {
                                 _buildButton("Entrar", false),
                               ])
                         : InkWell(
-                            onLongPress: (() {}),
+                            onLongPress: (() {
+                              _sendMessage();
+                            }),
                             child: Text(
                               minhaVez == true
                                   ? "Sua vez!!"
@@ -296,7 +300,7 @@ class _GameWidgetState extends State<GameWidget> {
       bool allPlaysDone = true;
       for (var line in cells) {
         for (var column in line) {
-          if(allPlaysDone == false) break;
+          if (allPlaysDone == false) break;
           if (column == 0) {
             allPlaysDone = false;
             break;
@@ -333,6 +337,53 @@ class _GameWidgetState extends State<GameWidget> {
                         [0, 0, 0],
                       ];
                     });
+                  },
+                  child: const Text("Fechar"))
+            ],
+          );
+        });
+  }
+
+  _sendMessage() {
+    final editingController = TextEditingController();
+    return showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text("Mande sua mensagem:"),
+            content: TextField(
+              controller: editingController,
+            ),
+            actions: [
+              ElevatedButton(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    await _sendAction("chat", {'message': '${game!.creator ? 'p1' : 'p2'}|${editingController.text}'});
+                  },
+                  child: const Text("Enviar")),
+              ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text("Cancelar"))
+            ],
+          );
+        });
+  }
+
+  Future _showMessage(String message) {
+    return showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text("Você recebeu uma nova mensagem:"),
+            content: Text(message),
+            actions: [
+              ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
                   },
                   child: const Text("Fechar"))
             ],
